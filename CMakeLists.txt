@@ -34,9 +34,8 @@ target_include_directories(vk_storage INTERFACE
 target_sources(vk_storage INTERFACE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/vk/storage.h>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/vk/detail/entry.h>
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/vk/detail/comparators.h>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/vk/detail/types.h>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/vk/impl/entry.tpp>
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/vk/impl/comparators.tpp>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/vk/impl/storage.tpp>
 )
 
@@ -53,9 +52,9 @@ if(BUILD_EXAMPLES)
 endif()
 
 # ===== ТЕСТЫ =====
-# if(BUILD_TESTS)
-#     add_subdirectory(tests)
-# endif()
+if(BUILD_TESTS)
+    add_subdirectory(tests)
+endif()
 
 # ===== УСТАНОВКА =====
 # include(GNUInstallDirs)

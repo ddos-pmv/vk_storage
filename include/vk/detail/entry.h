@@ -1,24 +1,16 @@
 #pragma once
 
-#include <chrono>
-#include <list>
-#include <map>
-#include <set>
-#include <string>
-#include <unordered_map>
+#include <vk/detail/types.h>
 
 namespace vk::detail {
 
 template <typename Clock>
 struct Entry {
-  using TimePoint = typename Clock::time_point;
-  using EntryList = std::list<Entry>;
-  using EntryIterator = typename EntryList::iterator;
-  using KeyIndexIterator =
-      typename std::unordered_map<std::string_view, EntryIterator>::iterator;
-  using SortedIndexIterator =
-      typename std::map<std::string_view, EntryIterator>::iterator;
-  using TTLIndexIterator = typename std::multiset<EntryIterator>::iterator;
+  using Types = Types<Clock>;
+  using TimePoint = typename Types::TimePoint;
+  using KeyIndexIterator = typename Types::KeyIndexIterator;
+  using SortedIndexIterator = typename Types::SortedIndexIterator;
+  using TTLIndexIterator = typename Types::TTLIndexIterator;
 
   std::string key;
   std::string value;
@@ -35,6 +27,7 @@ struct Entry {
   void update_ttl(TimePoint new_time, bool new_has_ttl);
   bool is_expired(const Clock& clock) const;
 };
+
 }  // namespace vk::detail
 
 #include <vk/impl/entry.tpp>

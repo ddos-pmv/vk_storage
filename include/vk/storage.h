@@ -1,7 +1,7 @@
 #pragma once
 
-#include <vk/detail/comparators.h>
 #include <vk/detail/entry.h>
+#include <vk/detail/types.h>
 
 #include <chrono>
 #include <list>
@@ -32,16 +32,19 @@ class KVStorage {
   std::optional<std::pair<std::string, std::string>> removeOneExpiredEntry();
 
  private:
-  using Entry = detail::Entry<Clock>;
-  using EntryList = std::list<Entry>;
-  using EntryIterator = typename EntryList::iterator;
-  using TTLComparator = detail::TTLComparator<Clock>;
+  using Types = detail::Types<Clock>;
+  using Entry = typename Types::EntryType;
+  using EntryList = typename Types::EntryList;
+  using EntryIterator = typename Types::EntryIterator;
+  using KeyIndex = typename Types::KeyIndex;
+  using SortedIndex = typename Types::SortedIndex;
+  using TTLIndex = typename Types::TTLIndex;
 
   Clock clock_;
   EntryList entries_;
-  std::unordered_map<std::string_view, EntryIterator> key_index_;
-  std::map<std::string_view, EntryIterator> sorted_index_;
-  std::multiset<EntryIterator, TTLComparator> ttl_index_;
+  KeyIndex key_index_;
+  SortedIndex sorted_index_;
+  TTLIndex ttl_index_;
 };
 }  // namespace vk
 

@@ -14,18 +14,14 @@ template <typename Clock>
 void KVStorage<Clock>::set(std::string key, std::string value, uint32_t ttl) {
   auto existing = key_index_.find(key);
   if (existing != key_index_.end()) {
-    // Обновляем существующую запись
     EntryIterator entry_it = existing->second;
 
-    // Удаляем из TTL индекса используя сохраненный итератор O(1)
     if (entry_it->has_ttl) {
       ttl_index_.erase(entry_it->ttl_index_it);
     }
 
-    // Обновляем значение
     entry_it->update_value(std::move(value));
 
-    // Обновляем TTL
     if (ttl > 0) {
       auto expiry = clock_.now() + std::chrono::seconds(ttl);
       entry_it->update_ttl(expiry, true);
@@ -34,15 +30,14 @@ void KVStorage<Clock>::set(std::string key, std::string value, uint32_t ttl) {
       entry_it->update_ttl(typename Clock::time_point{}, false);
     }
   } else {
-    // Создаем новую запись
     auto expiry = (ttl > 0) ? clock_.now() + std::chrono::seconds(ttl)
                             : typename Clock::time_point{};
     bool has_ttl_flag = ttl > 0;
 
-    entries_.emplace_back(key, std::move(value), expiry, has_ttl_flag);
+    entries_.emplace_back(std::move(key), std::move(value), expiry,
+                          has_ttl_flag);
     EntryIterator entry_it = std::prev(entries_.end());
 
-    // Добавляем в индексы и сохраняем итераторы
     entry_it->key_index_it =
         key_index_.emplace(std::string_view(entry_it->key), entry_it).first;
     entry_it->sorted_index_it =
@@ -63,7 +58,6 @@ bool KVStorage<Clock>::remove(std::string_view key) {
 
   EntryIterator entry_it = it->second;
 
-  // Удаляем из всех индексов за O(1) используя сохраненные итераторы!
   key_index_.erase(entry_it->key_index_it);
   sorted_index_.erase(entry_it->sorted_index_it);
 
@@ -71,7 +65,6 @@ bool KVStorage<Clock>::remove(std::string_view key) {
     ttl_index_.erase(entry_it->ttl_index_it);
   }
 
-  // Удаляем из основного контейнера O(1)
   entries_.erase(entry_it);
 
   return true;
