@@ -1,44 +1,30 @@
 #include <vk/storage.h>
 
+#include <chrono>
 #include <iostream>
-#include <memory>
-#include <memory_resource>
-#include <set>
-#include <unordered_map>
-
-struct Entry {
-  std::string key;
-  std::string value;
-
-  bool has_ttl = false;
-
-  std::pmr::unordered_map<int, int> mp;
-  // Итераторы для быстрого удаления O(1)
-  std::unordered_map<std::string_view, Entry*>::iterator hash_it;
-  std::map<std::string_view, Entry*>::iterator sorted_it;
-  std::multiset<Entry*>::iterator ttl_it;  // только если has_ttl == true
-};
 
 int main() {
-  std::string s =
-      "1312312312321312321sajkhfalsdjkhflasdjkfhlskjfhlsjdfhasjkhfalskjhf;"
-      "dfkjas;fkapijqpwejnr2 3";
-  std::string_view sv(s);
+  // Создаем хранилище с начальными данными
+  std::vector<std::tuple<std::string, std::string, uint32_t>> vec = {
+      {"key1", "val1", 0}, {"key2", "val2", 40}};
 
-  std::unique_ptr<Entry> ptr = std::make_unique<Entry>();
-  //   std::shared_ptr<Entry> ptr = std::make_shared<Entry>();
-  std::cout << sizeof(std::unique_ptr<Entry>) << " " << sizeof(ptr)
-            << std::endl;
+  vk::KVStorage<std::chrono::steady_clock> storage{
+      std::span<std::tuple<std::string, std::string, uint32_t>>(vec)};
 
-  std::cout
-      << sizeof(std::unordered_map<std::string_view,
-                                   std::shared_ptr<Entry> >::iterator)
-      << " "
-      << sizeof(std::map<std::string_view, std::shared_ptr<Entry> >::iterator)
-      << std::endl;
+  // Тестируем операции
+  std::cout << "=== Тестируем get ===" << std::endl;
+  if (auto value = storage.get("key1")) {
+    std::cout << "key1: " << *value << std::endl;
+  }
 
-  std::cout << sizeof(std::string_view) << " " << sizeof(s) << "  "
-            << sizeof(sv) << std::endl;
+  std::cout << "\n=== Тестируем set ===" << std::endl;
+  storage.set("key3", "value3", 0);
+
+  std::cout << "\n=== Тестируем getManySorted ===" << std::endl;
+  auto sorted_results = storage.getManySorted("key", 10);
+  for (const auto& [key, value] : sorted_results) {
+    std::cout << key << ": " << value << std::endl;
+  }
 
   return 0;
 }
