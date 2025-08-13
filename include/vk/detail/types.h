@@ -1,5 +1,8 @@
 #pragma once
 
+#include <boost/intrusive/list.hpp>
+#include <boost/intrusive/set.hpp>
+#include <boost/intrusive/unordered_set.hpp>
 #include <chrono>
 #include <list>
 #include <map>

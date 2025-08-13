@@ -1,5 +1,4 @@
 #pragma once
-
 #include <vk/detail/entry.h>
 #include <vk/detail/types.h>
 

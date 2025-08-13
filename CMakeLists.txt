@@ -12,18 +12,22 @@ set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3 -DNDEBUG")
 # Опции сборки
 option(BUILD_TESTS "Build tests" ON)
 option(BUILD_EXAMPLES "Build examples" ON)
-option(BUILD_SHARED_LIBS "Build shared libraries" OFF)
+
+# ===== Boost полностью =====
+include(FetchContent)
+
+FetchContent_Declare(
+  Boost
+  URL https://github.com/boostorg/boost/releases/download/boost-1.83.0/boost-1.83.0.tar.xz
+  DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+)
+
+set(BOOST_ENABLE_CMAKE ON)
+set(BOOST_INCLUDE_LIBRARIES "intrusive")
+
+FetchContent_MakeAvailable(Boost)
 
 # ===== ОСНОВНАЯ БИБЛИОТЕКА =====
-file(GLOB_RECURSE VK_STORAGE_SOURCES 
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp
-)
-
-file(GLOB_RECURSE VK_STORAGE_HEADERS 
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/*.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/*.h
-)
-
 add_library(vk_storage INTERFACE)
 
 target_include_directories(vk_storage INTERFACE
@@ -39,12 +43,7 @@ target_sources(vk_storage INTERFACE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/vk/impl/storage.tpp>
 )
 
-# Устанавливаем свойства библиотеки
-# set_target_properties(vk_storage PROPERTIES
-#     VERSION 1.0.0
-#     SOVERSION 1
-#     PUBLIC_HEADER "${CMAKE_CURRENT_SOURCE_DIR}/include/vk/storage.h"
-# )
+target_link_libraries(vk_storage INTERFACE Boost::intrusive)
 
 # ===== ПРИМЕРЫ =====
 if(BUILD_EXAMPLES)
@@ -55,26 +54,3 @@ endif()
 if(BUILD_TESTS)
     add_subdirectory(tests)
 endif()
-
-# ===== УСТАНОВКА =====
-# include(GNUInstallDirs)
-
-# install(TARGETS vk_storage
-#     EXPORT vk_storageTargets
-#     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-#     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-#     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-#     PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/vk
-# )
-
-# # Устанавливаем все публичные заголовки
-# install(DIRECTORY include/
-#     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-#     FILES_MATCHING PATTERN "*.h"
-# )
-
-# install(EXPORT vk_storageTargets
-#     FILE vk_storageTargets.cmake
-#     NAMESPACE vk::
-#     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/vk_storage
-# )
