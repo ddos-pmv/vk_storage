@@ -115,8 +115,7 @@ make -j$(nproc)
 # Сборка образа
 docker build -t vk-storage .
 
-# Интерактивный режим для экспериментов
-docker run --rm -it vk-storage bash
+docker run --rm -it vk-storage
 ```
 
 ## Использование
