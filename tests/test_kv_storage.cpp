@@ -13,7 +13,8 @@ class KVStorageTest : public ::testing::Test {
     std::vector<std::tuple<std::string, std::string, uint32_t>> initial_data = {
         {"key1", "value1", 0}, {"key2", "value2", 10}, {"key3", "value3", 5}};
     storage_ = std::make_unique<vk::KVStorage<std::chrono::steady_clock>>(
-        std::span(initial_data));
+        std::span<std::tuple<std::string, std::string, uint32_t>>(
+            initial_data));
   }
 
   std::unique_ptr<vk::KVStorage<std::chrono::steady_clock>> storage_;
@@ -103,7 +104,8 @@ class KVStorageTTLTest : public ::testing::Test {
         {"short_ttl", "value", 5},
         {"long_ttl", "value", 3600}};
     storage_ = std::make_unique<vk::KVStorage<MockClock>>(
-        std::span(initial_data), clock_);
+        std::span<std::tuple<std::string, std::string, uint32_t>>(initial_data),
+        clock_);
   }
 
   MockClock clock_;

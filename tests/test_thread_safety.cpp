@@ -14,7 +14,8 @@ class KVStorageThreadSafetyTest : public ::testing::Test {
     std::vector<std::tuple<std::string, std::string, uint32_t>> initial_data = {
         {"shared_key", "initial_value", 0}};
     storage_ = std::make_unique<vk::KVStorage<std::chrono::steady_clock>>(
-        std::span(initial_data));
+        std::span<std::tuple<std::string, std::string, uint32_t>>(
+            initial_data));
   }
 
   std::unique_ptr<vk::KVStorage<std::chrono::steady_clock>> storage_;
@@ -93,7 +94,9 @@ TEST_F(KVStorageThreadSafetyTest, ConcurrentTTLOperations) {
       {"ttl_key_2", "value2", 10},
       {"ttl_key_3", "value3", 15}};
 
-  vk::KVStorage<MockClock> ttl_storage(std::span(initial_data), clock);
+  vk::KVStorage<MockClock> ttl_storage(
+      std::span<std::tuple<std::string, std::string, uint32_t>>(initial_data),
+      clock);
 
   const int num_threads = 4;
   std::vector<std::thread> threads;

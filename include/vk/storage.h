@@ -6,12 +6,14 @@
 #include <chrono>
 #include <concepts>
 #include <memory>
+#include <mutex>
 #include <optional>
 #include <shared_mutex>
 #include <span>
 #include <string>
 #include <string_view>
 #include <tuple>
+#include <vector>
 
 namespace vk {
 

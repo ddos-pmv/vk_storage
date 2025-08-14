@@ -19,7 +19,6 @@ include(FetchContent)
 FetchContent_Declare(
   Boost
   URL https://github.com/boostorg/boost/releases/download/boost-1.83.0/boost-1.83.0.tar.xz
-  DOWNLOAD_EXTRACT_TIMESTAMP TRUE
 )
 
 set(BOOST_ENABLE_CMAKE ON)
@@ -41,6 +40,10 @@ target_sources(vk_storage INTERFACE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/vk/detail/types.h>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/vk/impl/entry.tpp>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/vk/impl/storage.tpp>
+)
+
+target_include_directories(vk_storage INTERFACE
+    ${boost_SOURCE_DIR}
 )
 
 target_link_libraries(vk_storage INTERFACE 
