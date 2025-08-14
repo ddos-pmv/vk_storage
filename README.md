@@ -1,6 +1,6 @@
-# VK Storage - Key-Value Storage Implementation
+# VK Storage - High-Performance Key-Value Storage
 
-VK Internship Test Assignment - высокопроизводительное key-value хранилище с поддержкой TTL.
+Высокопроизводительное key-value хранилище с поддержкой TTL и O(1) удалением.
 
 ## Архитектура
 
@@ -9,16 +9,16 @@ VK Internship Test Assignment - высокопроизводительное key
 
 
 ### Основные компоненты:
-- **Entry** - запись с интрузивными итераторами для O(1) удаления
-- **3 индекса**: hash table (ключи), sorted map (ranges), multiset (TTL)
+- **Entry** - запись с интрузивными хуками для O(1) операций
+- **4 интрузивных индекса**: hash table (ключи), sorted set (ranges), TTL set, memory list
 - **Template Clock** - абстракция времени для тестируемости
 
-### Структуры данных:
+### Интрузивные структуры данных (Boost.Intrusive):
 ```cpp
-EntryList entries_;              // std::list<Entry> - основное хранилище
-KeyIndex key_index_;             // std::unordered_map - O(1) доступ по ключу
-SortedIndex sorted_index_;       // std::map - O(log n) sorted ranges
-TTLIndex ttl_index_;             // std::multiset - O(log n) TTL управление
+MemoryList memory_list_;         // boost::intrusive::list - O(1) create/destroy entry
+KeyIndex key_index_;             // boost::intrusive::unordered_set - O(1) доступ по ключу  
+SortedIndex sorted_index_;       // boost::intrusive::set - O(log n) sorted ranges
+TTLIndex ttl_index_;             // boost::intrusive::set - O(log n) TTL управление
 ```
 
 ## ⚡ Сложность операций
@@ -40,43 +40,68 @@ TTLIndex ttl_index_;             // std::multiset - O(log n) TTL управле�
 struct Entry {
     std::string key;
     std::string value;
-    TimePoint expiry_time;              // 8 bytes
-    bool has_ttl;                       // 8 bytes (с padding)
+    TimePoint expiry_time;                                      // 8 bytes
+    bool has_ttl;                                              // 1 byte + 7 padding
     
-    // Intrusive hooks - только указатели на соседей:
-    boost::intrusive::unordered_set_member_hook<> hash_hook_;  // ~8 bytes
-    boost::intrusive::set_member_hook<> set_hook_;            // ~24 bytes
-    boost::intrusive::set_member_hook<> ttl_hook_;            // ~24 bytes
+    // Intrusive hooks - только указатели на соседей в контейнерах:
+    boost::intrusive::unordered_set_member_hook<> hash_hook_;   // ~16 bytes
+    boost::intrusive::set_member_hook<> sorted_hook_;          // ~24 bytes  
+    boost::intrusive::set_member_hook<> ttl_hook_;             // ~24 bytes
+    boost::intrusive::list_member_hook<> memory_hook_;         // ~16 bytes
 };
-// std::vector<std::unique_ptr<Entry>> - 8 bytes
 ```
-- Boost Контейнеры НЕ создают дополнительных узлов!
 
-### Итого: ~100 bytes overhead per Entry
+**Ключевое преимущество**: Boost.Intrusive контейнеры НЕ создают дополнительных узлов!
+Все указатели хранятся прямо в Entry объекте.
 
+### Итого: ~100 bytes overhead per Entry (без учета key/value)
 
 ## Ключевые особенности реализации
 
-### 1. Интрузивные итераторы
+### 1. Полностью интрузивная архитектура
+- Каждый Entry содержит хуки для всех 4 контейнеров
+- **Никаких дополнительных аллокаций** - все указатели в самом объекте
+- O(1) удаление из всех индексов через `iterator_to()`
+
+### 2. Memory Management через intrusive::list
 ```cpp
-// Каждый Entry хранит итераторы на самого себя во всех индексах
-KeyIndexIterator key_index_it;     // для O(1) удаления из hash table
-SortedIndexIterator sorted_index_it; // для O(1) удаления из sorted map  
-TTLIndexIterator ttl_index_it;     // для O(1) удаления из TTL set
+// O(1) создание и уничтожение записей
+Entry* create_entry(const std::string& key, const std::string& value) {
+    auto* entry = new Entry{key, value, ...};
+    memory_list_.push_back(*entry);  // O(1) - просто добавить в список
+    return entry;
+}
+
+void destroy_entry(Entry* entry) {
+    memory_list_.erase(memory_list_.iterator_to(*entry));  // O(1)
+    delete entry;
+}
 ```
 
-### 2. Lazy TTL Expiration
+### 3. Lazy TTL Expiration
 - Проверка истечения TTL только при доступе к записи
-- `removeOneExpiredEntry()` для активной очистки
+- `removeOneExpiredEntry()` для активной очистки через TTL индекс
 - Минимальный overhead на проверку времени
 
 
-## Сборка
+## Требования
+
+- **C++20** (для std::span, string_view, concepts)
+- **CMake 3.16+**
+- **Boost.Intrusive** (подтягивается автоматически через FetchContent)
+- **GTest** (для тестов, подтягивается автоматически)
+
+## Сборка и запуск
 
 ```bash
+# Клонирование
+git clone <https://github.com/ddos-pmv/vk_storage>
+cd vk_storage
+
+# Сборка
 mkdir build && cd build
 cmake ..
-make
+make -j$(nproc)
 
 # Запуск тестов
 ./tests/vk_storage_tests
@@ -85,33 +110,41 @@ make
 ./examples/example_1
 ```
 
+### Сборка и запуск в Docker
+```bash
+# Сборка образа
+docker build -t vk-storage .
+
+# Интерактивный режим для экспериментов
+docker run --rm -it vk-storage bash
+```
+
 ## Использование
 
 ```cpp
 #include <vk/storage.h>
 
 // Создание с начальными данными
-std::vector<std::tuple<std::string, std::string, uint32_t>> data = {
+std::vector<std::tuple<std::string, std::string, uint32_t>> initial_data = {
     {"key1", "value1", 0},    // без TTL
     {"key2", "value2", 60}    // TTL 60 секунд
 };
 
-vk::KVStorage storage(std::span(data));
+vk::KVStorage storage(std::span(initial_data));
 
 // Основные операции
-storage.set("key3", "value3", 30);          // O(log n)
-auto value = storage.get("key1");           // O(1)
-bool removed = storage.remove("key2");      // O(1)
+storage.set("key3", "value3", 30);          // O(log n) - добавить в sorted и TTL индексы
+auto value = storage.get("key1");           // O(1) - поиск в hash индексе
+bool removed = storage.remove("key2");      // O(1) - удаление из всех индексов
 
-// Sorted range queries
-auto results = storage.getManySorted("key", 10); // O(log n + k)
+// Sorted range queries  
+auto results = storage.getManySorted("key", 10); // O(log n + k) - поиск в sorted индексе
 
 // TTL cleanup
-auto expired = storage.removeOneExpiredEntry(); // O(1)
+auto expired = storage.removeOneExpiredEntry(); // O(1) - удаление самой старой записи
 ```
 
-## Оптимизации для production
+## Возможные улучшения для production
 
-1. **Memory Pool** для Entry объектов
-2. **Sharding** для многопоточности  
-3. **Compressed indices** для memory efficiency
+1. **Custom Allocator**: заменить new/delete на pool allocator
+2. **Sharding**: разделить на несколько independent shards для многопоточности

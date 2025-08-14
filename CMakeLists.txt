@@ -23,7 +23,7 @@ FetchContent_Declare(
 )
 
 set(BOOST_ENABLE_CMAKE ON)
-set(BOOST_INCLUDE_LIBRARIES "intrusive;pool")
+set(BOOST_INCLUDE_LIBRARIES "intrusive")
 
 FetchContent_MakeAvailable(Boost)
 
@@ -45,7 +45,6 @@ target_sources(vk_storage INTERFACE
 
 target_link_libraries(vk_storage INTERFACE 
     Boost::intrusive
-    Boost::pool
 )
 
 # ===== ПРИМЕРЫ =====
