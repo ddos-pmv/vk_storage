@@ -4,6 +4,10 @@ VK Internship Test Assignment - высокопроизводительное key
 
 ## Архитектура
 
+## Важно !!!
+***Т.к. в задании не было запрета на использование сторнних библиотек, для реализации была использована Boost.Intrusive. Если запрет все же был, то прошу оценить предыдущую реализацию[(ссылка на комит)](https://github.com/ddos-pmv/vk_storage/tree/2ba6ed0ea94cfa0a6e505d22fe1ee3fa85a7dd58), без испльзование сторнних библиотек.***
+
+
 ### Основные компоненты:
 - **Entry** - запись с интрузивными итераторами для O(1) удаления
 - **3 индекса**: hash table (ключи), sorted map (ranges), multiset (TTL)
@@ -34,26 +38,22 @@ TTLIndex ttl_index_;             // std::multiset - O(log n) TTL управле�
 ### Per Entry:
 ```cpp
 struct Entry {
-    std::string key;                     // ~32 bytes (+ key data)
-    std::string value;                   // ~32 bytes (+ value data)
-    TimePoint expiry_time;               // 8 bytes
-    bool has_ttl;                        // 1 byte + 7 padding
+    std::string key;
+    std::string value;
+    TimePoint expiry_time;              // 8 bytes
+    bool has_ttl;                       // 8 bytes (с padding)
     
-    // Интрузивные итераторы для O(1) удаления:
-    KeyIndexIterator key_index_it;       // ~24 bytes
-    SortedIndexIterator sorted_index_it; // ~24 bytes  
-    TTLIndexIterator ttl_index_it;       // ~24 bytes
+    // Intrusive hooks - только указатели на соседей:
+    boost::intrusive::unordered_set_member_hook<> hash_hook_;  // ~8 bytes
+    boost::intrusive::set_member_hook<> set_hook_;            // ~24 bytes
+    boost::intrusive::set_member_hook<> ttl_hook_;            // ~24 bytes
 };
-// Итого: ~152 bytes per entry + key/value data
+// std::vector<std::unique_ptr<Entry>> - 8 bytes
 ```
+- Boost Контейнеры НЕ создают дополнительных узлов!
 
-### Container Overhead:
-- **std::list nodes**: ~24 bytes per node (prev, next, data)
-- **std::unordered_map buckets**: ~16 bytes per bucket + load factor overhead
-- **std::map nodes**: ~40 bytes per node (RB-tree: left, right, parent, color, data)
-- **std::multiset nodes**: ~40 bytes per node
+### Итого: ~100 bytes overhead per Entry
 
-### Общий overhead на запись: ~230-250 bytes
 
 ## Ключевые особенности реализации
 

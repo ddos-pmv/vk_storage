@@ -23,7 +23,7 @@ FetchContent_Declare(
 )
 
 set(BOOST_ENABLE_CMAKE ON)
-set(BOOST_INCLUDE_LIBRARIES "intrusive")
+set(BOOST_INCLUDE_LIBRARIES "intrusive;pool")
 
 FetchContent_MakeAvailable(Boost)
 
@@ -43,7 +43,10 @@ target_sources(vk_storage INTERFACE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/vk/impl/storage.tpp>
 )
 
-target_link_libraries(vk_storage INTERFACE Boost::intrusive)
+target_link_libraries(vk_storage INTERFACE 
+    Boost::intrusive
+    Boost::pool
+)
 
 # ===== ПРИМЕРЫ =====
 if(BUILD_EXAMPLES)
