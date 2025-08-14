@@ -4,8 +4,10 @@
 
 #include <array>
 #include <chrono>
+#include <concepts>
 #include <memory>
 #include <optional>
+#include <shared_mutex>
 #include <span>
 #include <string>
 #include <string_view>
@@ -13,7 +15,20 @@
 
 namespace vk {
 
-template <typename Clock = std::chrono::steady_clock>
+template <typename Clock>
+concept ClockType = requires {
+  typename Clock::time_point;
+  typename Clock::duration;
+  { Clock::now() } -> std::same_as<typename Clock::time_point>;
+
+  requires requires(typename Clock::time_point tp, typename Clock::duration d) {
+    { tp + d } -> std::same_as<typename Clock::time_point>;
+    { tp - d } -> std::same_as<typename Clock::time_point>;
+    { tp - tp } -> std::same_as<typename Clock::duration>;
+  };
+};
+
+template <ClockType Clock = std::chrono::steady_clock>
 class KVStorage {
  public:
   explicit KVStorage(
@@ -49,6 +64,9 @@ class KVStorage {
   SortedIndex sorted_index_;
   TTLIndex ttl_index_;
   MemoryList memory_list_;
+
+  // Thread safety
+  mutable std::shared_mutex mutex_;
 
   Entry* create_entry(std::string key, std::string value,
                       typename Clock::time_point expiry, bool has_ttl);

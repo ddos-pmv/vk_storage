@@ -8,6 +8,8 @@ FetchContent_MakeAvailable(googletest)
 
 add_executable(vk_storage_tests
     test_kv_storage.cpp
+    test_thread_safety.cpp
+    mock_clock.cpp
 )
 
 target_link_libraries(vk_storage_tests

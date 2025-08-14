@@ -2,7 +2,7 @@
 
 namespace vk {
 
-template <typename Clock>
+template <ClockType Clock>
 KVStorage<Clock>::KVStorage(
     std::span<std::tuple<std::string, std::string, uint32_t>> entries,
     Clock clock)
@@ -13,8 +13,10 @@ KVStorage<Clock>::KVStorage(
   }
 }
 
-template <typename Clock>
+template <ClockType Clock>
 KVStorage<Clock>::~KVStorage() {
+  std::unique_lock lock(mutex_);
+
   key_index_.clear();
   sorted_index_.clear();
   ttl_index_.clear();
@@ -26,8 +28,10 @@ KVStorage<Clock>::~KVStorage() {
   }
 }
 
-template <typename Clock>
+template <ClockType Clock>
 void KVStorage<Clock>::set(std::string key, std::string value, uint32_t ttl) {
+  std::unique_lock lock(mutex_);
+
   Entry search_entry(key, "", typename Clock::time_point{}, false);
   auto existing = key_index_.find(search_entry);
 
@@ -65,8 +69,10 @@ void KVStorage<Clock>::set(std::string key, std::string value, uint32_t ttl) {
   }
 }
 
-template <typename Clock>
+template <ClockType Clock>
 bool KVStorage<Clock>::remove(std::string_view key) {
+  std::unique_lock lock(mutex_);
+
   Entry search_entry(std::string(key), "", typename Clock::time_point{}, false);
   auto it = key_index_.find(search_entry);
 
@@ -89,8 +95,10 @@ bool KVStorage<Clock>::remove(std::string_view key) {
   return true;
 }
 
-template <typename Clock>
+template <ClockType Clock>
 std::optional<std::string> KVStorage<Clock>::get(std::string_view key) const {
+  std::shared_lock lock(mutex_);
+
   Entry search_entry(std::string(key), "", typename Clock::time_point{}, false);
   auto it = key_index_.find(search_entry);
 
@@ -107,9 +115,11 @@ std::optional<std::string> KVStorage<Clock>::get(std::string_view key) const {
   return entry.value;
 }
 
-template <typename Clock>
+template <ClockType Clock>
 std::vector<std::pair<std::string, std::string>>
 KVStorage<Clock>::getManySorted(std::string_view key, uint32_t count) const {
+  std::shared_lock lock(mutex_);
+
   std::vector<std::pair<std::string, std::string>> result;
   result.reserve(count);
 
@@ -129,9 +139,11 @@ KVStorage<Clock>::getManySorted(std::string_view key, uint32_t count) const {
   return result;
 }
 
-template <typename Clock>
+template <ClockType Clock>
 std::optional<std::pair<std::string, std::string>>
 KVStorage<Clock>::removeOneExpiredEntry() {
+  std::unique_lock lock(mutex_);
+
   if (ttl_index_.empty()) {
     return std::nullopt;
   }
@@ -157,7 +169,7 @@ KVStorage<Clock>::removeOneExpiredEntry() {
   return result;
 }
 
-template <typename Clock>
+template <ClockType Clock>
 typename KVStorage<Clock>::Entry* KVStorage<Clock>::create_entry(
     std::string key, std::string value, typename Clock::time_point expiry,
     bool has_ttl) {
@@ -165,7 +177,7 @@ typename KVStorage<Clock>::Entry* KVStorage<Clock>::create_entry(
   return new Entry(std::move(key), std::move(value), expiry, has_ttl);
 }
 
-template <typename Clock>
+template <ClockType Clock>
 void KVStorage<Clock>::destroy_entry(Entry* entry) {
   delete entry;
 }
