@@ -1,28 +1,42 @@
 #pragma once
-
 #include <vk/detail/entry.h>
 #include <vk/detail/types.h>
 
+#include <array>
 #include <chrono>
-#include <list>
-#include <map>
+#include <concepts>
+#include <memory>
+#include <mutex>
 #include <optional>
-#include <set>
+#include <shared_mutex>
 #include <span>
 #include <string>
 #include <string_view>
 #include <tuple>
-#include <unordered_map>
 #include <vector>
 
 namespace vk {
-template <typename Clock = std::chrono::steady_clock>
+
+template <typename Clock>
+concept ClockType = requires {
+  typename Clock::time_point;
+  typename Clock::duration;
+  { Clock::now() } -> std::same_as<typename Clock::time_point>;
+
+  requires requires(typename Clock::time_point tp, typename Clock::duration d) {
+    { tp + d } -> std::same_as<typename Clock::time_point>;
+    { tp - d } -> std::same_as<typename Clock::time_point>;
+    { tp - tp } -> std::same_as<typename Clock::duration>;
+  };
+};
+
+template <ClockType Clock = std::chrono::steady_clock>
 class KVStorage {
  public:
   explicit KVStorage(
       std::span<std::tuple<std::string, std::string, uint32_t>> entries,
       Clock clock = Clock());
-  ~KVStorage() = default;
+  ~KVStorage();
 
   void set(std::string key, std::string value, uint32_t ttl);
   bool remove(std::string_view key);
@@ -34,18 +48,33 @@ class KVStorage {
  private:
   using Types = detail::Types<Clock>;
   using Entry = typename Types::EntryType;
-  using EntryList = typename Types::EntryList;
-  using EntryIterator = typename Types::EntryIterator;
   using KeyIndex = typename Types::KeyIndex;
   using SortedIndex = typename Types::SortedIndex;
   using TTLIndex = typename Types::TTLIndex;
+  using Bucket = typename Types::Bucket;
+  using BucketTraits = typename Types::BucketTraits;
+  using MemoryList = typename Types::MemoryList;
 
   Clock clock_;
-  EntryList entries_;
+
+  // Buckets для hash table
+  static constexpr size_t BUCKET_COUNT = 1024;
+  std::array<Bucket, BUCKET_COUNT> buckets_;
+
+  // Intrusive containers
   KeyIndex key_index_;
   SortedIndex sorted_index_;
   TTLIndex ttl_index_;
+  MemoryList memory_list_;
+
+  // Thread safety
+  mutable std::shared_mutex mutex_;
+
+  Entry* create_entry(std::string key, std::string value,
+                      typename Clock::time_point expiry, bool has_ttl);
+  void destroy_entry(Entry* entry);
 };
+
 }  // namespace vk
 
 #include <vk/impl/storage.tpp>

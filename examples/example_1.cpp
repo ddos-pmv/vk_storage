@@ -2,6 +2,8 @@
 
 #include <chrono>
 #include <iostream>
+#include <span>
+#include <vector>
 
 int main() {
   // Создаем хранилище с начальными данными
