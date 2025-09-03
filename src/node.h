@@ -7,18 +7,36 @@
 #include <iostream>
 #include <memory>
 #include <sstream>
+#include <thread>
+#include <vector>
 
 using namespace boost::asio;
 
 template<typename Clock = std::chrono::steady_clock>
 class Node {
 public:
-    Node(uint16_t port) : acceptor_(io_context_, ip::tcp::endpoint(ip::tcp::v4(), port)) {}
+    Node(uint16_t port, size_t thread_count = std::thread::hardware_concurrency())
+        : acceptor_(io_context_, ip::tcp::endpoint(ip::tcp::v4(), port)),
+          thread_count_(thread_count) {}
 
     void run() {
-        std::cout << "Node started on port " << acceptor_.local_endpoint().port() << std::endl;
+        std::cout << "Node started on port " << acceptor_.local_endpoint().port()
+                  << " with " << thread_count_ << " threads" << std::endl;
+
         start_accept();
-        io_context_.run();
+
+        // Запускаем пул потоков для io_context
+        std::vector<std::thread> threads;
+        threads.reserve(thread_count_);
+
+        for (size_t i = 0; i < thread_count_; ++i) {
+            threads.emplace_back([this] { io_context_.run(); });
+        }
+
+        // Ждем завершения всех потоков
+        for (auto& thread : threads) {
+            thread.join();
+        }
     }
 
 private:
@@ -26,14 +44,16 @@ private:
         auto socket = std::make_shared<ip::tcp::socket>(io_context_);
         acceptor_.async_accept(*socket, [this, socket](const boost::system::error_code& ec) {
             if (!ec) {
-                std::cout << "New connection from: " << socket->remote_endpoint() << std::endl;
-                start_read(socket);
+                std::cout << "New connection from: " << socket->remote_endpoint()
+                         << " [thread: " << std::this_thread::get_id() << "]" << std::endl;
+                handle_client(socket);
             }
             start_accept();
         });
     }
 
-    void start_read(std::shared_ptr<ip::tcp::socket> socket) {
+    void handle_client(std::shared_ptr<ip::tcp::socket> socket) {
+        // Каждый клиент обрабатывается в отдельном потоке из пула
         auto buffer = std::make_shared<boost::asio::streambuf>();
         boost::asio::async_read_until(*socket, *buffer, "\n",
             [this, socket, buffer](const boost::system::error_code& ec, std::size_t) {
@@ -42,12 +62,17 @@ private:
                     std::string line;
                     std::getline(stream, line);
 
+                    // Обработка запроса может происходить в любом потоке
                     std::string response = handle_request(line);
 
                     auto response_buffer = std::make_shared<std::string>(response + "\n");
                     boost::asio::async_write(*socket, boost::asio::buffer(*response_buffer),
-                        [this, socket, response_buffer](const boost::system::error_code&, std::size_t) {
-                            start_read(socket);
+                        [this, socket, response_buffer](const boost::system::error_code& write_ec, std::size_t) {
+                            if (!write_ec) {
+                                handle_client(socket); // Продолжаем читать от этого клиента
+                            } else {
+                                std::cout << "Client disconnected" << std::endl;
+                            }
                         });
                 } else {
                     std::cout << "Client disconnected" << std::endl;
@@ -99,4 +124,5 @@ private:
     io_context io_context_;
     ip::tcp::acceptor acceptor_;
     vk::KVStorage<Clock> storage_;
+    size_t thread_count_;
 };
