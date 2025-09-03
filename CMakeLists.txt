@@ -18,11 +18,13 @@ include(FetchContent)
 
 FetchContent_Declare(
   Boost
-  URL https://github.com/boostorg/boost/releases/download/boost-1.83.0/boost-1.83.0.tar.xz
+        URL https://github.com/boostorg/boost/releases/download/boost-1.83.0/boost-1.83.0.tar.xz
+        DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+
 )
 
 set(BOOST_ENABLE_CMAKE ON)
-set(BOOST_INCLUDE_LIBRARIES "intrusive")
+set(BOOST_INCLUDE_LIBRARIES "intrusive" "asio" "program_options")
 
 FetchContent_MakeAvailable(Boost)
 
@@ -49,6 +51,21 @@ target_include_directories(vk_storage INTERFACE
 target_link_libraries(vk_storage INTERFACE 
     Boost::intrusive
 )
+
+# ===== ИСПОЛНЯЕМЫЙ ФАЙЛ НОДЫ =====
+add_executable(vk_storage_node 
+    src/main.cpp
+    src/node.h
+)
+
+target_link_libraries(vk_storage_node PRIVATE
+    vk_storage
+    Boost::asio
+    Boost::program_options
+)
+
+# ===== Клиень =====
+add_subdirectory(client)
 
 # ===== ПРИМЕРЫ =====
 if(BUILD_EXAMPLES)

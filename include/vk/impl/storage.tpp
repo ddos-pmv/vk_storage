@@ -3,11 +3,13 @@
 namespace vk {
 
 template <ClockType Clock>
-KVStorage<Clock>::KVStorage(
-    std::span<std::tuple<std::string, std::string, uint32_t>> entries,
-    Clock clock)
+KVStorage<Clock>::KVStorage(Clock clock)
     : clock_(clock),
-      key_index_(BucketTraits(buckets_.data(), buckets_.size())) {
+      key_index_(BucketTraits(buckets_.data(), buckets_.size())) {}
+
+template <ClockType Clock>
+void KVStorage<Clock>::store(
+    std::span<std::tuple<std::string, std::string, uint32_t>> entries) {
   for (const auto& [key, value, ttl] : entries) {
     set(key, value, ttl);
   }

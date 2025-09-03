@@ -33,11 +33,10 @@ concept ClockType = requires {
 template <ClockType Clock = std::chrono::steady_clock>
 class KVStorage {
  public:
-  explicit KVStorage(
-      std::span<std::tuple<std::string, std::string, uint32_t>> entries,
-      Clock clock = Clock());
+  explicit KVStorage(Clock clock = Clock());
   ~KVStorage();
 
+  void store(std::span<std::tuple<std::string, std::string, uint32_t>> entries);
   void set(std::string key, std::string value, uint32_t ttl);
   bool remove(std::string_view key);
   std::optional<std::string> get(std::string_view key) const;
