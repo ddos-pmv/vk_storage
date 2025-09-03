@@ -1,12 +1,13 @@
-#include <boost/asio.hpp>
+#include <iostream>
+#include "client.h"
 
-using namespace boost::asio;
-
-int main ()
-{
-    io_service service;
-    ip::tcp::endpoint( boost::asio::ip::address::from_string( "127.0.0.1" ), 8080 );
-
-
+int main() {
+    try {
+        Client client;
+        client.run_cli();
+    } catch (const std::exception &e) {
+        std::cerr << "Error: " << e.what() << std::endl;
+        return 1;
+    }
     return 0;
 }
