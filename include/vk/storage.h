@@ -17,63 +17,63 @@
 
 namespace vk {
 
-template <typename Clock>
+template<typename Clock>
 concept ClockType = requires {
-  typename Clock::time_point;
-  typename Clock::duration;
-  { Clock::now() } -> std::same_as<typename Clock::time_point>;
+    typename Clock::time_point;
+    typename Clock::duration;
+    { Clock::now() } -> std::same_as<typename Clock::time_point>;
 
-  requires requires(typename Clock::time_point tp, typename Clock::duration d) {
-    { tp + d } -> std::same_as<typename Clock::time_point>;
-    { tp - d } -> std::same_as<typename Clock::time_point>;
-    { tp - tp } -> std::same_as<typename Clock::duration>;
-  };
+    requires requires(typename Clock::time_point tp, typename Clock::duration d) {
+        { tp + d } -> std::same_as<typename Clock::time_point>;
+        { tp - d } -> std::same_as<typename Clock::time_point>;
+        { tp - tp } -> std::same_as<typename Clock::duration>;
+    };
 };
 
-template <ClockType Clock = std::chrono::steady_clock>
+template<ClockType Clock = std::chrono::steady_clock>
 class KVStorage {
- public:
-  explicit KVStorage(Clock clock = Clock());
-  ~KVStorage();
+public:
+    explicit KVStorage(Clock clock = Clock());
+    ~KVStorage();
 
-  void store(std::span<std::tuple<std::string, std::string, uint32_t>> entries);
-  void set(std::string key, std::string value, uint32_t ttl);
-  bool remove(std::string_view key);
-  std::optional<std::string> get(std::string_view key) const;
-  std::vector<std::pair<std::string, std::string>> getManySorted(
-      std::string_view key, uint32_t count) const;
-  std::optional<std::pair<std::string, std::string>> removeOneExpiredEntry();
+    void store(std::span<std::tuple<std::string, std::string, uint32_t>> entries);
+    void set(std::string key, std::string value, uint32_t ttl);
+    bool set_if_newer(std::string key, std::string value, uint32_t ttl,
+                 typename Clock::time_point update_time);
+    bool remove(std::string_view key);
+    std::optional<std::string> get(std::string_view key) const;
+    std::vector<std::pair<std::string, std::string>> getManySorted(std::string_view key, uint32_t count) const;
+    std::optional<std::pair<std::string, std::string>> removeOneExpiredEntry();
 
- private:
-  using Types = detail::Types<Clock>;
-  using Entry = typename Types::EntryType;
-  using KeyIndex = typename Types::KeyIndex;
-  using SortedIndex = typename Types::SortedIndex;
-  using TTLIndex = typename Types::TTLIndex;
-  using Bucket = typename Types::Bucket;
-  using BucketTraits = typename Types::BucketTraits;
-  using MemoryList = typename Types::MemoryList;
+private:
+    using Types = detail::Types<Clock>;
+    using Entry = typename Types::EntryType;
+    using KeyIndex = typename Types::KeyIndex;
+    using SortedIndex = typename Types::SortedIndex;
+    using TTLIndex = typename Types::TTLIndex;
+    using Bucket = typename Types::Bucket;
+    using BucketTraits = typename Types::BucketTraits;
+    using MemoryList = typename Types::MemoryList;
 
-  Clock clock_;
+    Clock clock_;
 
-  // Buckets для hash table
-  static constexpr size_t BUCKET_COUNT = 1024;
-  std::array<Bucket, BUCKET_COUNT> buckets_;
+    // Buckets для hash table
+    static constexpr size_t BUCKET_COUNT = 1024;
+    std::array<Bucket, BUCKET_COUNT> buckets_;
 
-  // Intrusive containers
-  KeyIndex key_index_;
-  SortedIndex sorted_index_;
-  TTLIndex ttl_index_;
-  MemoryList memory_list_;
+    // Intrusive containers
+    KeyIndex key_index_;
+    SortedIndex sorted_index_;
+    TTLIndex ttl_index_;
+    MemoryList memory_list_;
 
-  // Thread safety
-  mutable std::shared_mutex mutex_;
+    // Thread safety
+    mutable std::shared_mutex mutex_;
 
-  Entry* create_entry(std::string key, std::string value,
-                      typename Clock::time_point expiry, bool has_ttl);
-  void destroy_entry(Entry* entry);
+    Entry *create_entry(std::string key, std::string value, typename Clock::time_point expiry, bool has_ttl);
+    void destroy_entry(Entry *entry);
 };
 
-}  // namespace vk
+} // namespace vk
 
 #include <vk/impl/storage.tpp>

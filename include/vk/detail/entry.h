@@ -7,28 +7,30 @@
 
 namespace vk::detail {
 
-template <typename Clock>
+template<typename Clock>
 struct Entry {
-  using TimePoint = typename Clock::time_point;
+    using TimePoint = typename Clock::time_point;
 
-  std::string key;
-  std::string value;
-  TimePoint expiry_time;
-  bool has_ttl = false;
+    std::string key;
+    std::string value;
+    TimePoint expiry_time;
+    bool has_ttl = false;
+    TimePoint last_update;
 
-  // Хуки
-  boost::intrusive::unordered_set_member_hook<> hash_hook_;
-  boost::intrusive::set_member_hook<> set_hook_;
-  boost::intrusive::set_member_hook<> ttl_hook_;
-  boost::intrusive::list_member_hook<> memory_hook_;
+    // Хуки
+    boost::intrusive::unordered_set_member_hook<> hash_hook_;
+    boost::intrusive::set_member_hook<> set_hook_;
+    boost::intrusive::set_member_hook<> ttl_hook_;
+    boost::intrusive::list_member_hook<> memory_hook_;
 
-  Entry(std::string k, std::string v, TimePoint exp, bool ttl);
+    Entry(std::string k, std::string v, TimePoint exp, bool ttl);
 
-  void update_value(std::string new_val);
-  void update_ttl(TimePoint new_time, bool new_has_ttl);
-  bool is_expired(const Clock& clock) const;
+    void update_value(std::string new_val);
+    void update_ttl(TimePoint new_time, bool new_has_ttl);
+    bool is_expired(const Clock &clock) const;
+    bool is_newer_than(const Entry &other) const;
 };
 
-}  // namespace vk::detail
+} // namespace vk::detail
 
 #include <vk/impl/entry.tpp>
