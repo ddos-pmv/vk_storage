@@ -38,7 +38,7 @@ public:
 
     void store(std::span<std::tuple<std::string, std::string, uint32_t>> entries);
     void set(std::string key, std::string value, uint32_t ttl);
-    bool set_if_newer(std::string key, std::string value, uint32_t ttl,
+    void set_if_newer(std::string key, std::string value, uint32_t ttl,
                  typename Clock::time_point update_time);
     bool remove(std::string_view key);
     std::optional<std::string> get(std::string_view key) const;
@@ -62,9 +62,9 @@ private:
     std::array<Bucket, BUCKET_COUNT> buckets_;
 
     // Intrusive containers
-    KeyIndex key_index_;
-    SortedIndex sorted_index_;
-    TTLIndex ttl_index_;
+    KeyIndex key_index_;    // Hashmap by key
+    SortedIndex sorted_index_;  // RB-tree by key
+    TTLIndex ttl_index_;    // RB-tree by ttl
     MemoryList memory_list_;
 
     // Thread safety

@@ -11,6 +11,7 @@ add_executable(vk_storage_tests
     test_kv_storage.cpp
     test_thread_safety.cpp
     mock_clock.cpp
+        test_kv_gossip.cpp
 )
 
 target_link_libraries(vk_storage_tests

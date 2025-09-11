@@ -67,6 +67,50 @@ void KVStorage<Clock>::set(std::string key, std::string value, uint32_t ttl) {
 }
 
 template<ClockType Clock>
+void KVStorage<Clock>::set_if_newer(std::string key, std::string value, uint32_t ttl,
+                                    typename Clock::time_point update_time) {
+    std::unique_lock lock(mutex_);
+
+    Entry search_entry(key, "", typename Clock::time_point{}, false);
+    auto existing = key_index_.find(search_entry);
+
+    if (existing != key_index_.end() && existing->last_update < update_time) { // existing and new value is newer
+        Entry &entry = *existing;
+
+        // Erase from ttl_index
+        if (existing->has_ttl) {
+            ttl_index_.erase(ttl_index_.iterator_to(entry));
+        }
+
+        entry.update_value(std::move(value));
+        entry.last_update = clock_.now();
+        // Update ttl
+        if (ttl > 0) {
+            auto expiry = clock_.now() + std::chrono::seconds(ttl);
+            entry.update_ttl(expiry, true);
+            ttl_index_.insert(entry);
+        } else {
+            entry.update_ttl(typename Clock::time_point{}, false);
+        }
+
+        ttl_index_.insert(entry);
+    } else {
+        auto expiry = (ttl > 0) ? update_time + std::chrono::seconds(ttl) : typename Clock::time_point{};
+        bool has_ttl_flag = ttl > 0;
+
+        Entry *entry = create_entry(std::move(key), std::move(value), expiry, has_ttl_flag);
+        entry->last_update = update_time; // Устанавливаем переданное время
+
+        key_index_.insert(*entry);
+        sorted_index_.insert(*entry);
+        memory_list_.push_back(*entry);
+
+        if (has_ttl_flag) {
+            ttl_index_.insert(*entry);
+        }
+    }
+}
+template<ClockType Clock>
 bool KVStorage<Clock>::remove(std::string_view key) {
     std::unique_lock lock(mutex_);
 
